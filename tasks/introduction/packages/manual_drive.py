@@ -7,4 +7,4 @@ TURN = 0.5
 
 
 def get_motor_speeds(keys_pressed: Dict[str, bool]) -> Tuple[float, float]:
-    raise NotImplementedError("TODO: Implement this function")
+    pass
