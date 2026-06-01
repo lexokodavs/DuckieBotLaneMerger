@@ -27,8 +27,8 @@ def main(camera, wheels, leds, stop_event):
                 print("Bot is in front of the lane, now waiting")
                 bot_state = BotState.waiting
                 outgoing_lane = decide_outgoing_lane(frame)
-
-            convoy(frame)
+            else:
+                convoy(frame)
 
         elif bot_state == BotState.waiting:
             can_go = areEmptyLanesUntil(outgoing_lane, frame)

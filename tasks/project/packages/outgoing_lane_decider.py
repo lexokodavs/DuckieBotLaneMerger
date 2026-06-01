@@ -1,6 +1,4 @@
 from adjacent_lanes import AdjacentLane
-from ObjectDetector import ObjectDetector
-import cv2
 
 def decide_outgoing_lane(frame, object_detector) -> AdjacentLane:
     detected_objects = object_detector.detect(frame)
@@ -20,8 +18,9 @@ def decide_outgoing_lane(frame, object_detector) -> AdjacentLane:
     
     elif duck_counter == 1:
         xmin, ymin, xmax, ymax = bbox
+        xmid = (xmax + xmin)/2
 
-        if xmax < 240:
+        if xmid < 320:
             return AdjacentLane.north
         else:
             return AdjacentLane.east
