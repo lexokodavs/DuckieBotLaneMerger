@@ -1,2 +1,2 @@
-def convoy(frame):
-    raise NotImplementedError("Convoying is not implemented yet")
+def convoy(frame, wheels, leds):
+    pass
