@@ -1,4 +1,4 @@
-from adjacent_lanes import AdjacentLane
+from .adjacent_lanes import AdjacentLane
 
 def decide_outgoing_lane(frame, object_detector) -> AdjacentLane:
     detected_objects = object_detector.detect(frame)

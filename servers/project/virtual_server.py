@@ -15,7 +15,6 @@ import numpy as np
 
 from servers.templates.project import get_template as PROJECT_TEMPLATE
 from tasks.project.packages import agent as project_agent
-from tasks.project.packages.agent import count_lanes
 
 from duckiebot.camera_driver.godot_camera_driver import GodotCameraDriver, GodotCameraConfig
 from duckiebot.wheel_driver.godot_wheels_driver import GodotWheelsDriver
@@ -42,7 +41,8 @@ def visualize(frame_rgb):
     # Prefer frame produced by the project agent if available.
     agent_frame = None
     try:
-        agent_frame = project_agent.get_last_frame()
+        agent_frame = None
+        #agent_frame = project_agent.get_last_frame() CHANGE
     except Exception:
         agent_frame = None
 
@@ -61,7 +61,7 @@ def visualize(frame_rgb):
         upper = list(_upper_bgr)
 
     try:
-        lanes = count_lanes(bgr, lower, upper, min_cluster_area=40)
+        lanes = 0
     except Exception:
         lanes = 0
 
@@ -99,7 +99,7 @@ def status():
         ub = list(_upper_bgr)
     agent_status = {}
     try:
-        agent_status = project_agent.get_status()
+        agent_status = {} #agent_status = project_agent.get_status() CHANGE
     except Exception:
         agent_status = {}
 

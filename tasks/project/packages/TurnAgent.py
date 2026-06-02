@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Tuple
-from adjacent_lanes import AdjacentLane
+from .adjacent_lanes import AdjacentLane
 
 TURN_SPEED = 0.18
 TURN_BIAS = 0.05
@@ -12,6 +12,8 @@ MIN_POINTS = 2
 class TurnAgent:
     def __init__(self,
                  outgoing_lane: AdjacentLane = AdjacentLane.north):
+        self._frame = 0
+
         if outgoing_lane == AdjacentLane.east:
             self._turn_speed = 0.18
             self._turn_bias = 0.05
@@ -39,3 +41,7 @@ class TurnAgent:
  
         self._check_reentry(image)
         return left, right
+
+    def _check_reentry(self, image: np.ndarray) -> None:
+        # Placeholder so the turn agent can run without an implementation.
+        return None

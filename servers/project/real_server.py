@@ -42,6 +42,8 @@ def _visualize(frame):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (80, 80, 80), 2)
         return blank
 
+    return frame
+
     # Red channel (BGR format)
     red = frame[:, :, 2]
     green = frame[:, :, 1]

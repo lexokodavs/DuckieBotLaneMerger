@@ -1,4 +1,4 @@
-from adjacent_lanes import AdjacentLane
+from .adjacent_lanes import AdjacentLane
 
 def isEmptyLaneNorth(frame, detected_objects) -> bool:
     for detected_object in detected_objects:
