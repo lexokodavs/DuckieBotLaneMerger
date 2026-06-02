@@ -6,9 +6,9 @@ from outgoing_lane_decider import decide_outgoing_lane
 from is_in_front_decider import is_in_front
 from convoy import convoy
 from ObjectDetector import ObjectDetector
-
+from TurnAgent import TurnAgent
 from _aux import set_all_leds
-
+from time import sleep
 
 def main(camera, wheels, leds, stop_event):
     print('[ProjectAgent] started main loop')
@@ -41,12 +41,17 @@ def main(camera, wheels, leds, stop_event):
             can_go = areEmptyLanesUntil(outgoing_lane, frame, detected_objects)
 
             if can_go:
-                print("Right lanes are clear, starting to turn")
-                bot_state = BotState.turning
-                set_all_leds(leds, 0, 0, 1)
+                sleep(300)
+                can_go = areEmptyLanesUntil(outgoing_lane, frame, detected_objects)
+                if can_go:
+                    print("Right lanes are clear, starting to turn")
+                    bot_state = BotState.turning
+                    turn_agent = TurnAgent(outgoing_lane)
+                    set_all_leds(leds, 0, 0, 1)
 
         elif bot_state == BotState.turning:
-            pass # TODO
+            turn_agent.step(frame)
+            print("Turning...")
 
         elif bot_state == BotState.finishing:
             pass # TODO
