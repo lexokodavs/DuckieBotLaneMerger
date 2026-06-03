@@ -1,4 +1,5 @@
 import time
+
 from tasks.project.packages.bot_state import BotState
 from tasks.project.packages.adjacent_lanes import AdjacentLane
 from tasks.project.packages.lane_state_decider import areEmptyLanesUntil
@@ -8,6 +9,7 @@ from tasks.project.packages.convoy import convoy
 from tasks.project.packages.ObjectDetector import ObjectDetector
 from tasks.project.packages.TurnAgent import TurnAgent
 from tasks.project.packages._aux import get_next_state_and_set_leds
+from tasks.project.packages.LaneServoingAgent import LaneServoingAgent
 
 def main(camera, wheels, leds, stop_event):
     print('[ProjectAgent] started main loop')
@@ -15,6 +17,7 @@ def main(camera, wheels, leds, stop_event):
     bot_state = get_next_state_and_set_leds(state=None, leds=leds)
     outgoing_lane = None
     object_detector = ObjectDetector(config_path="config/object_detection_config.yaml", model_path="tasks/object_detection/models/best.onnx")
+    lane_servoing_agent = LaneServoingAgent(config_path="config/lane_servoing_config.yaml")
 
     try:
         while not stop_event.is_set():
@@ -35,7 +38,7 @@ def main(camera, wheels, leds, stop_event):
                 can_go = areEmptyLanesUntil(outgoing_lane, frame, detected_objects)
 
                 if can_go:
-                    time.sleep(300)
+                    time.sleep(0.5)
                     can_go = areEmptyLanesUntil(outgoing_lane, frame, detected_objects)
                     if can_go:
                         bot_state = get_next_state_and_set_leds(bot_state, leds)
