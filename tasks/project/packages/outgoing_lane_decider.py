@@ -1,9 +1,11 @@
 import numpy as np
+import cv2
 from tasks.project.packages.adjacent_lanes import AdjacentLane
 from tasks.project.packages.ObjectDetector import ObjectDetector
 
 def decide_outgoing_lane(frame: np.ndarray, object_detector: ObjectDetector) -> AdjacentLane:
-    detected_objects = object_detector.detect(frame)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    detected_objects = object_detector.detect(frame_rgb)
     duck_counter = 0
 
     if detected_objects is None:

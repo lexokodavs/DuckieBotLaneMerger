@@ -1,31 +1,41 @@
 import numpy as np
 from typing import List
+import cv2
 from tasks.project.packages.adjacent_lanes import AdjacentLane
 from tasks.project.packages.ObjectDetector import Detection
+#from adjacent_lanes import AdjacentLane
+#from ObjectDetector import ObjectDetector, Detection
 
-def isEmptyLaneNorth(frame: np.ndarray, detected_objects: List[Detection]) -> bool:
+def isEmptyLaneNorth(detected_objects: List[Detection]) -> bool:
     for detected_object in detected_objects:
         bbox, score, cls_id = detected_object
         xmin, ymin, xmax, ymax = bbox
         xmid = (xmax + xmin)/2
 
         if cls_id == 1 and xmid < 320:
+            print("North lane is not empty")
             return False
         
+    print("North lane is empty")
     return True
     
-def isEmptyLaneEast(frame: np.ndarray, detected_objects: List[Detection]) -> bool:
+def isEmptyLaneEast(detected_objects: List[Detection]) -> bool:
     for detected_object in detected_objects:
         bbox, score, cls_id = detected_object
         xmin, ymin, xmax, ymax = bbox
         xmid = (xmax + xmin)/2
 
+        print(f"Detection: cls_id={cls_id}, xmid={xmid}")
+
         if cls_id == 1 and xmid >= 320:
+            print("East lane is not empty")
             return False
         
+    print("East lane is empty")
     return True
 
-def areEmptyLanesUntil(outgoing_lane: AdjacentLane, frame: np.ndarray, detected_objects: List[Detection]) -> bool:
+def areEmptyLanesUntil(outgoing_lane: AdjacentLane, detected_objects: List[Detection]) -> bool:
+    
     if detected_objects is None:
         return False
     
@@ -33,10 +43,17 @@ def areEmptyLanesUntil(outgoing_lane: AdjacentLane, frame: np.ndarray, detected_
         return True
     
     elif outgoing_lane == AdjacentLane.north:
-        return isEmptyLaneEast(frame, detected_objects)
+        return isEmptyLaneEast(detected_objects)
     
     elif outgoing_lane == AdjacentLane.west:
-        return isEmptyLaneEast(frame, detected_objects) and isEmptyLaneNorth(frame, detected_objects)
+        return isEmptyLaneEast(detected_objects) and isEmptyLaneNorth(detected_objects)
     
     else:
         raise ValueError("Invalid outgoing lane for areEmptyLanesUntil")
+    
+#object_detector = ObjectDetector(config_path="config/object_detection_config.yaml", model_path="tasks/object_detection/models/best.onnx")
+
+#frame = cv2.imread("tasks/project/packages/images/image16.png")
+#frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+#detected_objects = object_detector.detect(frame)
+#print(areEmptyLanesUntil(AdjacentLane.west, frame, detected_objects))

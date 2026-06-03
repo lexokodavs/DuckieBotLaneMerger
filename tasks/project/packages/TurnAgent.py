@@ -19,7 +19,7 @@ class TurnAgent:
 
         elif outgoing_lane == AdjacentLane.west:
             self._turn_speed = 0.2
-            self._turn_bias = 0.02
+            self._turn_bias = 0.1
             self.turn = 'left'
  
     def step(self, image: np.ndarray) -> Tuple[float, float]:

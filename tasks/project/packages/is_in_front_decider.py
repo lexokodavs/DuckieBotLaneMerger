@@ -11,11 +11,10 @@ def get_red_mask(frame) -> np.ndarray:
     mask2 = cv2.inRange(hsv, np.array([170, 120, 100]), np.array([180, 255, 255]))
     combined = mask1 | mask2
 
-    # Pad back to full frame height so the visualizer can overlay it directly
     full = np.zeros(frame.shape[:2], dtype=np.uint8)
     full[int(h * 0.75):, :] = combined
     return full
 
 
 def is_in_front(frame) -> bool:
-    return int(np.count_nonzero(get_red_mask(frame))) > 600
+    return int(np.count_nonzero(get_red_mask(frame))) > 1600
