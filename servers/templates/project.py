@@ -2,12 +2,25 @@ from .base import render_template
 
 _CONTENT = '''
     <div class="container">
-        <div class="video-section">
-            <img src="/video" class="stream" id="videoStream">
+
+        <!-- Left: two stacked video panels -->
+        <div class="video-section" style="flex-direction:column;gap:12px;">
+            <div style="flex:1;min-height:0;display:flex;flex-direction:column;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;
+                            letter-spacing:.05em;margin-bottom:6px;">Live feed</div>
+                <img src="/video" class="stream" id="videoStream" style="flex:1;min-height:0;">
+            </div>
+            <div style="flex:1;min-height:0;display:flex;flex-direction:column;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;
+                            letter-spacing:.05em;margin-bottom:6px;">Debug view</div>
+                <img src="/debug_frame" class="stream" id="debugStream" style="flex:1;min-height:0;">
+            </div>
         </div>
 
+        <!-- Right: controls sidebar -->
         <div class="controls-section">
 
+            <!-- Status card -->
             <div class="card">
                 <div class="card-header">
                     Status
@@ -21,6 +34,51 @@ _CONTENT = '''
                 </div>
             </div>
 
+            <!-- HSV bounds card (red detection) -->
+            <div class="card">
+                <div class="card-header">Red HSV Bounds</div>
+
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">
+                    Range 1 (hue 0–10)
+                </div>
+
+                <!-- Range 1 -->
+                <div id="hsv-lo1" style="margin-bottom:14px;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Lower bound</div>
+                    <div class="hsv-row" data-key="lo1" data-idx="0" data-label="H lo1"></div>
+                    <div class="hsv-row" data-key="lo1" data-idx="1" data-label="S lo1"></div>
+                    <div class="hsv-row" data-key="lo1" data-idx="2" data-label="V lo1"></div>
+                </div>
+                <div id="hsv-hi1" style="margin-bottom:14px;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Upper bound</div>
+                    <div class="hsv-row" data-key="hi1" data-idx="0" data-label="H hi1"></div>
+                    <div class="hsv-row" data-key="hi1" data-idx="1" data-label="S hi1"></div>
+                    <div class="hsv-row" data-key="hi1" data-idx="2" data-label="V hi1"></div>
+                </div>
+
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;
+                            border-top:1px solid var(--border-color);padding-top:10px;">
+                    Range 2 (hue 170–180)
+                </div>
+
+                <!-- Range 2 -->
+                <div id="hsv-lo2" style="margin-bottom:14px;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Lower bound</div>
+                    <div class="hsv-row" data-key="lo2" data-idx="0" data-label="H lo2"></div>
+                    <div class="hsv-row" data-key="lo2" data-idx="1" data-label="S lo2"></div>
+                    <div class="hsv-row" data-key="lo2" data-idx="2" data-label="V lo2"></div>
+                </div>
+                <div id="hsv-hi2" style="margin-bottom:10px;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Upper bound</div>
+                    <div class="hsv-row" data-key="hi2" data-idx="0" data-label="H hi2"></div>
+                    <div class="hsv-row" data-key="hi2" data-idx="1" data-label="S hi2"></div>
+                    <div class="hsv-row" data-key="hi2" data-idx="2" data-label="V hi2"></div>
+                </div>
+
+                <div id="hsvStatus" class="status"></div>
+            </div>
+
+            <!-- Send command card -->
             <div class="card">
                 <div class="card-header">Send Command</div>
                 <div style="display:flex;flex-direction:column;gap:8px;">
@@ -44,6 +102,7 @@ _CONTENT = '''
 '''
 
 _EXTRA_CSS = '''
+/* Status table rows */
 #statusTable .row {
     display: flex;
     justify-content: space-between;
@@ -53,42 +112,154 @@ _EXTRA_CSS = '''
 }
 #statusTable .row:last-child { border-bottom: none; }
 #statusTable .key  { color: var(--text-secondary); font-size: 12px; }
-#statusTable .val  { color: var(--text-primary);   font-weight: 500; font-size: 13px; font-family: monospace; }
+#statusTable .val  { color: var(--text-primary); font-weight: 500; font-size: 13px; font-family: monospace; }
+
+/* State badge colour */
+.state-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: monospace;
+    text-transform: uppercase;
+}
+.state-convoying { background: rgba(31,111,235,.2); color: var(--accent-blue); }
+.state-waiting   { background: rgba(210,153,34,.2); color: var(--accent-orange); }
+.state-turning   { background: rgba(163,113,247,.2); color: var(--accent-purple); }
+.state-finishing { background: rgba(63,185,80,.2);  color: var(--accent-green); }
+.state-unknown   { background: rgba(110,118,129,.2); color: var(--text-muted); }
+
+/* HSV slider rows */
+.hsv-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.hsv-label {
+    width: 40px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+/* Two stacked video panels */
+.video-section {
+    display: flex !important;
+    flex-direction: column !important;
+}
 '''
 
 _EXTRA_JS = '''
+/* ── Status polling ── */
 function refreshStatus() {
     fetch('/status')
         .then(r => r.json())
         .then(data => {
             const table = document.getElementById('statusTable');
-            const keys = Object.keys(data);
-            if (keys.length === 0) {
-                table.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:12px 0;">get_ui_data() returned {}</div>';
-                return;
-            }
-            table.innerHTML = keys.map(k =>
-                `<div class="row">
+            const state = (data.state || 'unknown').toLowerCase();
+
+            // Build badge for state
+            const badgeClass = 'state-' + state;
+            let rows = `<div class="row">
+                <span class="key">state</span>
+                <span class="val"><span class="state-badge ${badgeClass}">${state}</span></span>
+            </div>`;
+
+            // Remaining keys
+            Object.keys(data).filter(k => k !== 'state').forEach(k => {
+                rows += `<div class="row">
                     <span class="key">${k}</span>
                     <span class="val">${JSON.stringify(data[k])}</span>
-                </div>`
-            ).join('');
+                </div>`;
+            });
+            table.innerHTML = rows;
+
             document.getElementById('statusDot').style.background = 'var(--accent-green)';
+
+
         })
         .catch(() => {
             document.getElementById('statusDot').style.background = 'var(--accent-red)';
         });
 }
 
+/* ── Debug frame refresh ── */
+function refreshDebugFrame() {
+    const img = document.getElementById('debugStream');
+    img.src = '/debug_frame?t=' + Date.now();
+}
+
+/* ── HSV sliders ── */
+const HSV_MAX = { H: 180, S: 255, V: 255 };
+const HSV_KEYS = ['lo1', 'hi1', 'lo2', 'hi2'];
+const HSV_IDX_LABEL = ['H', 'S', 'V'];
+
+// current values mirrored locally
+const hsvState = { lo1: [0,120,100], hi1: [10,255,255], lo2: [170,120,100], hi2: [180,255,255] };
+
+function buildHsvSliders() {
+    document.querySelectorAll('.hsv-row').forEach(row => {
+        const key = row.dataset.key;
+        const idx = parseInt(row.dataset.idx);
+        const ch  = HSV_IDX_LABEL[idx];
+        const max = HSV_MAX[ch];
+        const id  = `hsv-${key}-${idx}`;
+        const val = hsvState[key][idx];
+
+        row.innerHTML = `
+            <span class="hsv-label">${ch}</span>
+            <input type="range" class="slider" id="${id}"
+                   min="0" max="${max}" value="${val}" style="flex:1;">
+            <input type="number" class="input-box" id="${id}-input"
+                   min="0" max="${max}" value="${val}" style="width:46px;">
+        `;
+
+        syncSliderInput(id, () => sendHsv(key, idx, parseInt(document.getElementById(id).value)));
+    });
+}
+
+let hsvSendTimeout = null;
+function sendHsv(key, idx, value) {
+    hsvState[key][idx] = value;
+    clearTimeout(hsvSendTimeout);
+    hsvSendTimeout = setTimeout(() => {
+        postJSON('/hsv', {
+            lo1: hsvState.lo1,
+            hi1: hsvState.hi1,
+            lo2: hsvState.lo2,
+            hi2: hsvState.hi2,
+        })
+        .then(() => showStatus('hsvStatus', 'Saved', 'success'))
+        .catch(e => showStatus('hsvStatus', 'Error: ' + e, 'error'));
+    }, 150);
+}
+
+function loadHsvBounds() {
+    fetch('/hsv')
+        .then(r => r.json())
+        .then(data => {
+            HSV_KEYS.forEach(k => {
+                if (data[k]) {
+                    hsvState[k] = data[k];
+                    [0,1,2].forEach(i => {
+                        setSliderValue(`hsv-${k}-${i}`, data[k][i]);
+                    });
+                }
+            });
+        });
+}
+
+/* ── Send command ── */
 function sendCommand() {
     const key   = document.getElementById('cmdKey').value.trim();
     const value = document.getElementById('cmdValue').value.trim();
-    if (!key) {
-        showStatus('cmdStatus', 'Key cannot be empty', 'error');
-        return;
-    }
+    if (!key) { showStatus('cmdStatus', 'Key cannot be empty', 'error'); return; }
     postJSON('/command', {key, value})
-        .then(r => showStatus('cmdStatus', r.status === 'ok' ? 'Sent' : r.message, r.status === 'ok' ? 'success' : 'error'))
+        .then(r => showStatus('cmdStatus', r.status === 'ok' ? 'Sent' : r.message,
+                              r.status === 'ok' ? 'success' : 'error'))
         .catch(e => showStatus('cmdStatus', 'Error: ' + e, 'error'));
 }
 
@@ -96,8 +267,13 @@ document.getElementById('cmdValue').addEventListener('keydown', e => {
     if (e.key === 'Enter') sendCommand();
 });
 
+/* ── Boot ── */
+buildHsvSliders();
+loadHsvBounds();
 refreshStatus();
-setInterval(refreshStatus, 500);
+refreshDebugFrame();
+setInterval(refreshStatus,    500);
+setInterval(refreshDebugFrame, 250);
 '''
 
 

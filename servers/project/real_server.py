@@ -8,7 +8,7 @@ script_dir   = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(script_dir, '..', '..')
 sys.path.insert(0, project_root)
 
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, request
 import numpy as np
 import cv2
 
@@ -18,8 +18,11 @@ from duckiebot.wheel_driver.wheels_driver_abs import WheelPWMConfiguration
 from duckiebot.led_driver import LEDDriver
 from launcher.ports import find_available_port
 from servers.common import make_frame_generator, shutdown_cleanup, suppress_http_logs
+from servers.templates.project import get_template
 
-import tasks.project.packages.agent as agent
+import tasks.project.packages.agent as agent_module
+from tasks.project.packages.is_in_front_decider import get_hsv_bounds, set_hsv_bounds
+from tasks.project.packages.ObjectDetector import ObjectDetector
 
 app        = Flask(__name__)
 camera     = None
@@ -27,23 +30,135 @@ wheels     = None
 leds       = None
 stop_event = threading.Event()
 
+_debug      = {'state': 'unknown', 'frame': None, 'red_mask': None, 'detections': [],
+               'yellow_mask': None, 'white_mask': None}
+_debug_lock = threading.Lock()
+
 
 def _visualize(frame):
-    if frame is not None:
-        return frame
-    blank = np.zeros((480, 640, 3), dtype=np.uint8)
-    cv2.putText(blank, "Waiting for camera...", (160, 240),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (80, 80, 80), 2)
-    return blank
+    if frame is None:
+        blank = np.zeros((480, 640, 3), dtype=np.uint8)
+        cv2.putText(blank, "Waiting for camera...", (160, 240),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (80, 80, 80), 2)
+        return blank
+    return frame
 
 
 generate_frames = make_frame_generator(lambda: camera, _visualize, quality=70, rgb=False)
+
+HTML_TEMPLATE = get_template(title='Project', subtitle='Real Duckiebot')
+
+
+@app.route('/')
+def index():
+    from flask import render_template_string
+    return render_template_string(HTML_TEMPLATE)
 
 
 @app.route('/video')
 def video():
     return Response(generate_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+def _build_debug_grid() -> np.ndarray:
+    """2×2 mosaic: detections overlay | red mask+line / yellow mask | white mask."""
+    with _debug_lock:
+        frame       = _debug['frame']
+        red_mask    = _debug['red_mask']
+        yellow_mask = _debug['yellow_mask']
+        white_mask  = _debug['white_mask']
+        detections  = list(_debug['detections'])
+
+    H, W = 240, 320
+
+    def _blank(label):
+        img = np.zeros((H, W, 3), dtype=np.uint8)
+        cv2.putText(img, label, (10, H // 2),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (80, 80, 80), 1)
+        return img
+
+    def _resize(img):
+        return cv2.resize(img, (W, H))
+
+    # Cell 0: detections overlay
+    if frame is not None:
+        c0 = frame.copy()
+        for det in detections:
+            bbox, score, cls_id = det
+            x1, y1, x2, y2 = bbox
+            cv2.rectangle(c0, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            label = {0: 'duckie', 1: 'truck', 2: 'sign'}.get(cls_id, str(cls_id))
+            cv2.putText(c0, f"{label} {score:.2f}", (x1 + 2, max(y1 - 4, 10)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
+        c0 = _resize(c0)
+    else:
+        c0 = _blank('detections')
+
+    # Cell 1: red mask + 75% line
+    if red_mask is not None:
+        c1 = cv2.cvtColor(red_mask, cv2.COLOR_GRAY2BGR)
+        c1[red_mask > 0] = (0, 0, 200)
+        line_y = int(red_mask.shape[0] * 0.75)
+        cv2.line(c1, (0, line_y), (c1.shape[1], line_y), (0, 200, 255), 1)
+        c1 = _resize(c1)
+        cv2.putText(c1, '75%', (4, int(H * 0.75) - 4),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 200, 255), 1)
+    else:
+        c1 = _blank('red mask')
+
+    # Cell 2: yellow mask
+    if yellow_mask is not None:
+        c2 = cv2.cvtColor(yellow_mask, cv2.COLOR_GRAY2BGR)
+        c2[yellow_mask > 0] = (0, 200, 200)
+        c2 = _resize(c2)
+    else:
+        c2 = _blank('yellow mask')
+
+    # Cell 3: white mask
+    if white_mask is not None:
+        c3 = cv2.cvtColor(white_mask, cv2.COLOR_GRAY2BGR)
+        c3[white_mask > 0] = (220, 220, 220)
+        c3 = _resize(c3)
+    else:
+        c3 = _blank('white mask')
+
+    for img, lbl in [(c0, 'Detections'), (c1, 'Red mask'), (c2, 'Yellow mask'), (c3, 'White mask')]:
+        cv2.putText(img, lbl, (6, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1)
+
+    return np.vstack([np.hstack([c0, c1]), np.hstack([c2, c3])])
+
+
+@app.route('/debug_frame')
+def debug_frame():
+    grid = _build_debug_grid()
+    _, jpeg = cv2.imencode('.jpg', grid, [cv2.IMWRITE_JPEG_QUALITY, 70])
+    return Response(jpeg.tobytes(), mimetype='image/jpeg')
+
+
+@app.route('/status')
+def status():
+    with _debug_lock:
+        state = _debug['state']
+        n_det = len(_debug['detections'])
+    return jsonify({'state': state, 'detections': n_det})
+
+
+@app.route('/hsv', methods=['GET'])
+def hsv_get():
+    return jsonify(get_hsv_bounds())
+
+
+@app.route('/hsv', methods=['POST'])
+def hsv_post():
+    data = request.get_json(force=True)
+    set_hsv_bounds(
+        lo1=data.get('lo1'),
+        hi1=data.get('hi1'),
+        lo2=data.get('lo2'),
+        hi2=data.get('hi2'),
+    )
+    return jsonify({'status': 'ok', **get_hsv_bounds()})
 
 
 @app.route('/shutdown')
@@ -85,8 +200,8 @@ def main():
     print('\n[4/4] Starting agent...')
     stop_event.clear()
     threading.Thread(
-        target=agent.main,
-        args=(camera, wheels, leds, stop_event),
+        target=agent_module.main,
+        args=(camera, wheels, leds, stop_event, _debug, _debug_lock),
         daemon=True,
         name='AgentThread',
     ).start()
@@ -107,7 +222,7 @@ def main():
     signal.signal(signal.SIGINT,  _shutdown)
 
     web_port = find_available_port(args.port)
-    print(f'\nVideo stream: http://localhost:{web_port}/video')
+    print(f'\nWeb interface: http://localhost:{web_port}/')
     print('Press Ctrl+C to stop\n')
 
     try:
