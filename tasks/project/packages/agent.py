@@ -43,6 +43,7 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
 
     bot_state = get_next_state_and_set_leds(state=None, leds=leds)
     printed_lr = False  # remove later
+    waiting_for_red_line_to_disappear = False
 
     try:
         while not stop_event.is_set():
@@ -68,8 +69,6 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
             white_mask  = (mask_right * 255).astype(np.uint8)
             detected_objects = []
 
-            waiting_for_red_line_to_disappear = False
-
             if bot_state == BotState.convoying:
                 if is_in_front(frame):
                     waiting_for_red_line_to_disappear = True
@@ -85,7 +84,7 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                     wheels.set_wheels_speed(0.0, 0.0)
                 else:
                     pass
-                    # convoy(frame, wheels, leds)
+                    #convoy(frame, wheels, leds)
 
             elif bot_state == BotState.waiting:
                 if has_to_wait_predetermined:
@@ -112,7 +111,6 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                         print("Switched to turning...")
 
             elif bot_state == BotState.turning:
-                continue
                 print("Calling turn_agent.step")
                 left, right, reentered = turn_agent.step(frame)
                 if not printed_lr:
@@ -122,6 +120,7 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                 wheels.set_wheels_speed(left, right)
 
                 if reentered:
+                    continue
                     print("Reentry detected, finishing.")
                     bot_state = get_next_state_and_set_leds(bot_state, leds)
                     wheels.set_wheels_speed(0.0, 0.0)

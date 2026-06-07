@@ -33,6 +33,7 @@ stop_event = threading.Event()
 _debug      = {'state': 'unknown', 'frame': None, 'red_mask': None, 'detections': [],
                'yellow_mask': None, 'white_mask': None}
 _debug_lock = threading.Lock()
+_cmd_queue  = __import__('queue').Queue()
 
 
 def _visualize(frame):
@@ -161,6 +162,16 @@ def hsv_post():
     return jsonify({'status': 'ok', **get_hsv_bounds()})
 
 
+@app.route('/command', methods=['POST'])
+def command():
+    data = request.get_json(force=True) or {}
+    key  = data.get('key')
+    if not key:
+        return jsonify({'status': 'error', 'message': 'missing key'}), 400
+    _cmd_queue.put({'key': key, 'value': data.get('value', '')})
+    return jsonify({'status': 'ok'})
+
+
 @app.route('/shutdown')
 def shutdown():
     shutdown_cleanup(wheels, camera, stop_event)
@@ -201,7 +212,7 @@ def main():
     stop_event.clear()
     threading.Thread(
         target=agent_module.main,
-        args=(camera, wheels, leds, stop_event, _debug, _debug_lock),
+        args=(camera, wheels, leds, stop_event, _debug, _debug_lock, _cmd_queue),
         daemon=True,
         name='AgentThread',
     ).start()
