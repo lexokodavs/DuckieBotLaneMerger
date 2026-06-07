@@ -192,6 +192,23 @@ def hsv_post():
     return jsonify({'status': 'ok', **get_hsv_bounds()})
 
 
+@app.route('/hsv/lane', methods=['GET'])
+def hsv_lane_get():
+    return jsonify(lane_markings_module.get_hsv_bounds())
+
+
+@app.route('/hsv/lane', methods=['POST'])
+def hsv_lane_post():
+    data = request.get_json(force=True)
+    lane_markings_module.set_hsv_bounds(
+        yellow_lower=data.get('yellow_lower'),
+        yellow_upper=data.get('yellow_upper'),
+        white_lower=data.get('white_lower'),
+        white_upper=data.get('white_upper'),
+    )
+    return jsonify({'status': 'ok', **lane_markings_module.get_hsv_bounds()})
+
+
 @app.route('/command', methods=['POST'])
 def command():
     data = request.json or {}

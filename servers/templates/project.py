@@ -3,18 +3,11 @@ from .base import render_template
 _CONTENT = '''
     <div class="container">
 
-        <!-- Left: two stacked video panels -->
-        <div class="video-section" style="flex-direction:column;gap:12px;">
-            <div style="flex:1;min-height:0;display:flex;flex-direction:column;">
-                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;
-                            letter-spacing:.05em;margin-bottom:6px;">Live feed</div>
-                <img src="/video" class="stream" id="videoStream" style="flex:1;min-height:0;">
-            </div>
-            <div style="flex:1;min-height:0;display:flex;flex-direction:column;">
-                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;
-                            letter-spacing:.05em;margin-bottom:6px;">Debug view</div>
-                <img src="/debug_frame" class="stream" id="debugStream" style="flex:1;min-height:0;">
-            </div>
+        <!-- Left: debug grid only -->
+        <div class="video-section" style="flex-direction:column;">
+            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;
+                        letter-spacing:.05em;margin-bottom:6px;">Debug view</div>
+            <img src="/debug_frame" class="stream" id="debugStream">
         </div>
 
         <!-- Right: controls sidebar -->
@@ -39,10 +32,8 @@ _CONTENT = '''
                 <div class="card-header">Red HSV Bounds</div>
 
                 <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">
-                    Range 1 (hue 0–10)
+                    Range 1 (hue 0-10)
                 </div>
-
-                <!-- Range 1 -->
                 <div id="hsv-lo1" style="margin-bottom:14px;">
                     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Lower bound</div>
                     <div class="hsv-row" data-key="lo1" data-idx="0" data-label="H lo1"></div>
@@ -58,10 +49,8 @@ _CONTENT = '''
 
                 <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;
                             border-top:1px solid var(--border-color);padding-top:10px;">
-                    Range 2 (hue 170–180)
+                    Range 2 (hue 170-180)
                 </div>
-
-                <!-- Range 2 -->
                 <div id="hsv-lo2" style="margin-bottom:14px;">
                     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Lower bound</div>
                     <div class="hsv-row" data-key="lo2" data-idx="0" data-label="H lo2"></div>
@@ -76,6 +65,46 @@ _CONTENT = '''
                 </div>
 
                 <div id="hsvStatus" class="status"></div>
+            </div>
+
+            <!-- HSV bounds card (yellow + white lane detection) -->
+            <div class="card">
+                <div class="card-header">Lane HSV Bounds</div>
+
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">
+                    Yellow lane
+                </div>
+                <div style="margin-bottom:14px;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Lower bound</div>
+                    <div class="lane-hsv-row" data-lanekey="yellow_lower" data-idx="0"></div>
+                    <div class="lane-hsv-row" data-lanekey="yellow_lower" data-idx="1"></div>
+                    <div class="lane-hsv-row" data-lanekey="yellow_lower" data-idx="2"></div>
+                </div>
+                <div style="margin-bottom:14px;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Upper bound</div>
+                    <div class="lane-hsv-row" data-lanekey="yellow_upper" data-idx="0"></div>
+                    <div class="lane-hsv-row" data-lanekey="yellow_upper" data-idx="1"></div>
+                    <div class="lane-hsv-row" data-lanekey="yellow_upper" data-idx="2"></div>
+                </div>
+
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;
+                            border-top:1px solid var(--border-color);padding-top:10px;">
+                    White lane
+                </div>
+                <div style="margin-bottom:14px;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Lower bound</div>
+                    <div class="lane-hsv-row" data-lanekey="white_lower" data-idx="0"></div>
+                    <div class="lane-hsv-row" data-lanekey="white_lower" data-idx="1"></div>
+                    <div class="lane-hsv-row" data-lanekey="white_lower" data-idx="2"></div>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Upper bound</div>
+                    <div class="lane-hsv-row" data-lanekey="white_upper" data-idx="0"></div>
+                    <div class="lane-hsv-row" data-lanekey="white_upper" data-idx="1"></div>
+                    <div class="lane-hsv-row" data-lanekey="white_upper" data-idx="2"></div>
+                </div>
+
+                <div id="laneHsvStatus" class="status"></div>
             </div>
 
             <!-- Send command card -->
@@ -131,7 +160,7 @@ _EXTRA_CSS = '''
 .state-unknown   { background: rgba(110,118,129,.2); color: var(--text-muted); }
 
 /* HSV slider rows */
-.hsv-row {
+.hsv-row, .lane-hsv-row {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -144,12 +173,6 @@ _EXTRA_CSS = '''
     text-transform: uppercase;
     flex-shrink: 0;
 }
-
-/* Two stacked video panels */
-.video-section {
-    display: flex !important;
-    flex-direction: column !important;
-}
 '''
 
 _EXTRA_JS = '''
@@ -160,15 +183,11 @@ function refreshStatus() {
         .then(data => {
             const table = document.getElementById('statusTable');
             const state = (data.state || 'unknown').toLowerCase();
-
-            // Build badge for state
             const badgeClass = 'state-' + state;
             let rows = `<div class="row">
                 <span class="key">state</span>
                 <span class="val"><span class="state-badge ${badgeClass}">${state}</span></span>
             </div>`;
-
-            // Remaining keys
             Object.keys(data).filter(k => k !== 'state').forEach(k => {
                 rows += `<div class="row">
                     <span class="key">${k}</span>
@@ -176,10 +195,7 @@ function refreshStatus() {
                 </div>`;
             });
             table.innerHTML = rows;
-
             document.getElementById('statusDot').style.background = 'var(--accent-green)';
-
-
         })
         .catch(() => {
             document.getElementById('statusDot').style.background = 'var(--accent-red)';
@@ -192,12 +208,10 @@ function refreshDebugFrame() {
     img.src = '/debug_frame?t=' + Date.now();
 }
 
-/* ── HSV sliders ── */
+/* ── Red HSV sliders ── */
 const HSV_MAX = { H: 180, S: 255, V: 255 };
-const HSV_KEYS = ['lo1', 'hi1', 'lo2', 'hi2'];
 const HSV_IDX_LABEL = ['H', 'S', 'V'];
 
-// current values mirrored locally
 const hsvState = { lo1: [0,120,100], hi1: [10,255,255], lo2: [170,120,100], hi2: [180,255,255] };
 
 function buildHsvSliders() {
@@ -208,7 +222,6 @@ function buildHsvSliders() {
         const max = HSV_MAX[ch];
         const id  = `hsv-${key}-${idx}`;
         const val = hsvState[key][idx];
-
         row.innerHTML = `
             <span class="hsv-label">${ch}</span>
             <input type="range" class="slider" id="${id}"
@@ -216,7 +229,6 @@ function buildHsvSliders() {
             <input type="number" class="input-box" id="${id}-input"
                    min="0" max="${max}" value="${val}" style="width:46px;">
         `;
-
         syncSliderInput(id, () => sendHsv(key, idx, parseInt(document.getElementById(id).value)));
     });
 }
@@ -226,14 +238,9 @@ function sendHsv(key, idx, value) {
     hsvState[key][idx] = value;
     clearTimeout(hsvSendTimeout);
     hsvSendTimeout = setTimeout(() => {
-        postJSON('/hsv', {
-            lo1: hsvState.lo1,
-            hi1: hsvState.hi1,
-            lo2: hsvState.lo2,
-            hi2: hsvState.hi2,
-        })
-        .then(() => showStatus('hsvStatus', 'Saved', 'success'))
-        .catch(e => showStatus('hsvStatus', 'Error: ' + e, 'error'));
+        postJSON('/hsv', { lo1: hsvState.lo1, hi1: hsvState.hi1, lo2: hsvState.lo2, hi2: hsvState.hi2 })
+            .then(() => showStatus('hsvStatus', 'Saved', 'success'))
+            .catch(e => showStatus('hsvStatus', 'Error: ' + e, 'error'));
     }, 150);
 }
 
@@ -241,13 +248,71 @@ function loadHsvBounds() {
     fetch('/hsv')
         .then(r => r.json())
         .then(data => {
-            HSV_KEYS.forEach(k => {
+            ['lo1','hi1','lo2','hi2'].forEach(k => {
                 if (data[k]) {
                     hsvState[k] = data[k];
-                    [0,1,2].forEach(i => {
-                        setSliderValue(`hsv-${k}-${i}`, data[k][i]);
-                    });
+                    [0,1,2].forEach(i => setSliderValue(`hsv-${k}-${i}`, data[k][i]));
                 }
+            });
+        });
+}
+
+/* ── Lane HSV sliders (yellow + white) ── */
+const laneHsvState = {
+    yellow_lower: [5,  80,  100],
+    yellow_upper: [35, 192, 250],
+    white_lower:  [0,  0,   180],
+    white_upper:  [179, 80, 255],
+};
+
+function buildLaneHsvSliders() {
+    document.querySelectorAll('.lane-hsv-row').forEach(row => {
+        const key = row.dataset.lanekey;
+        const idx = parseInt(row.dataset.idx);
+        const ch  = HSV_IDX_LABEL[idx];
+        const max = HSV_MAX[ch];
+        const id  = `lane-${key}-${idx}`;
+        const val = laneHsvState[key][idx];
+        row.innerHTML = `
+            <span class="hsv-label">${ch}</span>
+            <input type="range" class="slider" id="${id}"
+                   min="0" max="${max}" value="${val}" style="flex:1;">
+            <input type="number" class="input-box" id="${id}-input"
+                   min="0" max="${max}" value="${val}" style="width:46px;">
+        `;
+        syncSliderInput(id, () => sendLaneHsv(key, idx, parseInt(document.getElementById(id).value)));
+    });
+}
+
+let laneHsvSendTimeout = null;
+function sendLaneHsv(key, idx, value) {
+    laneHsvState[key][idx] = value;
+    clearTimeout(laneHsvSendTimeout);
+    laneHsvSendTimeout = setTimeout(() => {
+        postJSON('/hsv/lane', {
+            yellow_lower: laneHsvState.yellow_lower,
+            yellow_upper: laneHsvState.yellow_upper,
+            white_lower:  laneHsvState.white_lower,
+            white_upper:  laneHsvState.white_upper,
+        })
+            .then(() => showStatus('laneHsvStatus', 'Saved', 'success'))
+            .catch(e => showStatus('laneHsvStatus', 'Error: ' + e, 'error'));
+    }, 150);
+}
+
+function loadLaneHsvBounds() {
+    fetch('/hsv/lane')
+        .then(r => r.json())
+        .then(data => {
+            // server returns flat keys: yellow_lower_h, yellow_lower_s, etc.
+            ['yellow_lower','yellow_upper','white_lower','white_upper'].forEach(key => {
+                ['h','s','v'].forEach((ch, i) => {
+                    const val = data[`${key}_${ch}`];
+                    if (val !== undefined) {
+                        laneHsvState[key][i] = val;
+                        setSliderValue(`lane-${key}-${i}`, val);
+                    }
+                });
             });
         });
 }
@@ -270,9 +335,11 @@ document.getElementById('cmdValue').addEventListener('keydown', e => {
 /* ── Boot ── */
 buildHsvSliders();
 loadHsvBounds();
+buildLaneHsvSliders();
+loadLaneHsvBounds();
 refreshStatus();
 refreshDebugFrame();
-setInterval(refreshStatus,    500);
+setInterval(refreshStatus,     500);
 setInterval(refreshDebugFrame, 250);
 '''
 
