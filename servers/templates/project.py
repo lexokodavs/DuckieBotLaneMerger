@@ -36,15 +36,15 @@ _CONTENT = '''
                 </div>
                 <div id="hsv-lo1" style="margin-bottom:14px;">
                     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Lower bound</div>
-                    <div class="hsv-row" data-key="lo1" data-idx="0" data-label="H lo1"></div>
-                    <div class="hsv-row" data-key="lo1" data-idx="1" data-label="S lo1"></div>
-                    <div class="hsv-row" data-key="lo1" data-idx="2" data-label="V lo1"></div>
+                    <div class="hsv-row" data-key="lo1" data-idx="0"></div>
+                    <div class="hsv-row" data-key="lo1" data-idx="1"></div>
+                    <div class="hsv-row" data-key="lo1" data-idx="2"></div>
                 </div>
                 <div id="hsv-hi1" style="margin-bottom:14px;">
                     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Upper bound</div>
-                    <div class="hsv-row" data-key="hi1" data-idx="0" data-label="H hi1"></div>
-                    <div class="hsv-row" data-key="hi1" data-idx="1" data-label="S hi1"></div>
-                    <div class="hsv-row" data-key="hi1" data-idx="2" data-label="V hi1"></div>
+                    <div class="hsv-row" data-key="hi1" data-idx="0"></div>
+                    <div class="hsv-row" data-key="hi1" data-idx="1"></div>
+                    <div class="hsv-row" data-key="hi1" data-idx="2"></div>
                 </div>
 
                 <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;
@@ -53,18 +53,19 @@ _CONTENT = '''
                 </div>
                 <div id="hsv-lo2" style="margin-bottom:14px;">
                     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Lower bound</div>
-                    <div class="hsv-row" data-key="lo2" data-idx="0" data-label="H lo2"></div>
-                    <div class="hsv-row" data-key="lo2" data-idx="1" data-label="S lo2"></div>
-                    <div class="hsv-row" data-key="lo2" data-idx="2" data-label="V lo2"></div>
+                    <div class="hsv-row" data-key="lo2" data-idx="0"></div>
+                    <div class="hsv-row" data-key="lo2" data-idx="1"></div>
+                    <div class="hsv-row" data-key="lo2" data-idx="2"></div>
                 </div>
                 <div id="hsv-hi2" style="margin-bottom:10px;">
                     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Upper bound</div>
-                    <div class="hsv-row" data-key="hi2" data-idx="0" data-label="H hi2"></div>
-                    <div class="hsv-row" data-key="hi2" data-idx="1" data-label="S hi2"></div>
-                    <div class="hsv-row" data-key="hi2" data-idx="2" data-label="V hi2"></div>
+                    <div class="hsv-row" data-key="hi2" data-idx="0"></div>
+                    <div class="hsv-row" data-key="hi2" data-idx="1"></div>
+                    <div class="hsv-row" data-key="hi2" data-idx="2"></div>
                 </div>
 
-                <div id="hsvStatus" class="status"></div>
+                <button class="button" onclick="applyRedHsv()" style="margin-top:4px;">Apply</button>
+                <div id="hsvStatus" class="status" style="margin-top:6px;"></div>
             </div>
 
             <!-- HSV bounds card (yellow + white lane detection) -->
@@ -104,7 +105,8 @@ _CONTENT = '''
                     <div class="lane-hsv-row" data-lanekey="white_upper" data-idx="2"></div>
                 </div>
 
-                <div id="laneHsvStatus" class="status"></div>
+                <button class="button" onclick="applyLaneHsv()" style="margin-top:4px;">Apply</button>
+                <div id="laneHsvStatus" class="status" style="margin-top:6px;"></div>
             </div>
 
             <!-- Send command card -->
@@ -229,19 +231,16 @@ function buildHsvSliders() {
             <input type="number" class="input-box" id="${id}-input"
                    min="0" max="${max}" value="${val}" style="width:46px;">
         `;
-        syncSliderInput(id, () => sendHsv(key, idx, parseInt(document.getElementById(id).value)));
+        syncSliderInput(id, () => {
+            hsvState[key][idx] = parseInt(document.getElementById(id).value);
+        });
     });
 }
 
-let hsvSendTimeout = null;
-function sendHsv(key, idx, value) {
-    hsvState[key][idx] = value;
-    clearTimeout(hsvSendTimeout);
-    hsvSendTimeout = setTimeout(() => {
-        postJSON('/hsv', { lo1: hsvState.lo1, hi1: hsvState.hi1, lo2: hsvState.lo2, hi2: hsvState.hi2 })
-            .then(() => showStatus('hsvStatus', 'Saved', 'success'))
-            .catch(e => showStatus('hsvStatus', 'Error: ' + e, 'error'));
-    }, 150);
+function applyRedHsv() {
+    postJSON('/hsv', { lo1: hsvState.lo1, hi1: hsvState.hi1, lo2: hsvState.lo2, hi2: hsvState.hi2 })
+        .then(() => showStatus('hsvStatus', 'Applied', 'success'))
+        .catch(e => showStatus('hsvStatus', 'Error: ' + e, 'error'));
 }
 
 function loadHsvBounds() {
@@ -280,31 +279,27 @@ function buildLaneHsvSliders() {
             <input type="number" class="input-box" id="${id}-input"
                    min="0" max="${max}" value="${val}" style="width:46px;">
         `;
-        syncSliderInput(id, () => sendLaneHsv(key, idx, parseInt(document.getElementById(id).value)));
+        syncSliderInput(id, () => {
+            laneHsvState[key][idx] = parseInt(document.getElementById(id).value);
+        });
     });
 }
 
-let laneHsvSendTimeout = null;
-function sendLaneHsv(key, idx, value) {
-    laneHsvState[key][idx] = value;
-    clearTimeout(laneHsvSendTimeout);
-    laneHsvSendTimeout = setTimeout(() => {
-        postJSON('/hsv/lane', {
-            yellow_lower: laneHsvState.yellow_lower,
-            yellow_upper: laneHsvState.yellow_upper,
-            white_lower:  laneHsvState.white_lower,
-            white_upper:  laneHsvState.white_upper,
-        })
-            .then(() => showStatus('laneHsvStatus', 'Saved', 'success'))
-            .catch(e => showStatus('laneHsvStatus', 'Error: ' + e, 'error'));
-    }, 150);
+function applyLaneHsv() {
+    postJSON('/hsv/lane', {
+        yellow_lower: laneHsvState.yellow_lower,
+        yellow_upper: laneHsvState.yellow_upper,
+        white_lower:  laneHsvState.white_lower,
+        white_upper:  laneHsvState.white_upper,
+    })
+        .then(() => showStatus('laneHsvStatus', 'Applied', 'success'))
+        .catch(e => showStatus('laneHsvStatus', 'Error: ' + e, 'error'));
 }
 
 function loadLaneHsvBounds() {
     fetch('/hsv/lane')
         .then(r => r.json())
         .then(data => {
-            // server returns flat keys: yellow_lower_h, yellow_lower_s, etc.
             ['yellow_lower','yellow_upper','white_lower','white_upper'].forEach(key => {
                 ['h','s','v'].forEach((ch, i) => {
                     const val = data[`${key}_${ch}`];

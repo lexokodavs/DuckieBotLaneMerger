@@ -17,8 +17,9 @@ def calculate_distance_measure_to_leader(frame: np.ndarray) -> float:
 
 def convoy(frame, wheels, leds):
     distance = calculate_distance_measure_to_leader(frame)
+    safe_to_move = distance is not None and distance < distance_measure_threshold
 
-    if distance is not None and distance < distance_measure_threshold:
+    if safe_to_move:
         wheels.set_wheels_speed(0.0, 0.0)
     else:
         wheels.set_wheels_speed(0.2, 0.2)

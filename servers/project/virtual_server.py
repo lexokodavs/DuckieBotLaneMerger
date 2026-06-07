@@ -14,6 +14,7 @@ import numpy as np
 from servers.templates.project import get_template as get_project_template
 from tasks.project.packages import agent as project_agent
 from tasks.project.packages.is_in_front_decider import get_hsv_bounds, set_hsv_bounds
+import tasks.project.packages.detect_lane_markings as lane_markings_module
 
 from duckiebot.camera_driver.godot_camera_driver import GodotCameraDriver, GodotCameraConfig
 from duckiebot.wheel_driver.godot_wheels_driver import GodotWheelsDriver
@@ -170,9 +171,14 @@ def debug_frame():
 @app.route('/status')
 def status():
     with _debug_lock:
-        state = _debug['state']
-        n_det = len(_debug['detections'])
-    return jsonify({'state': state, 'detections': n_det, 'running': running})
+        debug_copy = dict(_debug)
+    state = debug_copy.get('state', 'unknown')
+    n_det = len(debug_copy.get('detections', []))
+    resp = {'state': state, 'detections': n_det, 'running': running}
+    # include distance_measure if computed by agent
+    if 'distance_measure' in debug_copy:
+        resp['distance'] = debug_copy.get('distance_measure')
+    return jsonify(resp)
 
 
 @app.route('/hsv', methods=['GET'])

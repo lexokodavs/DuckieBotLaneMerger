@@ -7,7 +7,7 @@ from tasks.project.packages.adjacent_lanes import AdjacentLane
 from tasks.project.packages.lane_state_decider import areEmptyLanesUntil
 from tasks.project.packages.outgoing_lane_decider import decide_outgoing_lane
 from tasks.project.packages.is_in_front_decider import is_in_front, get_red_mask, has_passed_red_line
-from tasks.project.packages.convoy import convoy
+from tasks.project.packages.convoy import convoy, calculate_distance_measure_to_leader
 from tasks.project.packages.detect_lane_markings import detect_lane_markings
 from tasks.project.packages.ObjectDetector import ObjectDetector
 from tasks.project.packages.TurnAgent import TurnAgent
@@ -83,8 +83,7 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                     print(f"Outgoing lane: {outgoing_lane}")
                     wheels.set_wheels_speed(0.0, 0.0)
                 else:
-                    pass
-                    #convoy(frame, wheels, leds)
+                    convoy(frame, wheels, leds)
 
             elif bot_state == BotState.waiting:
                 if has_to_wait_predetermined:
@@ -131,6 +130,13 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
             else:
                 raise ValueError(f"Invalid bot state: {bot_state}")
 
+            # compute distance measure to leader (for tuning threshold)
+            distance_measure = None
+            try:
+                distance_measure = calculate_distance_measure_to_leader(frame)
+            except Exception:
+                distance_measure = None
+
             _update_debug(
                 state=bot_state.name,
                 frame=frame.copy(),
@@ -138,6 +144,7 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                 yellow_mask=yellow_mask,
                 white_mask=white_mask,
                 detections=detected_objects,
+                distance_measure=distance_measure,
             )
 
             time.sleep(0.01)

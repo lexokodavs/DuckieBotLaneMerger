@@ -4,9 +4,9 @@ white_lower_v: 180
 white_upper_h: 179
 white_upper_s: 80
 white_upper_v: 255
-yellow_lower_h: 5
-yellow_lower_s: 80
-yellow_lower_v: 100
+yellow_lower_h: 23
+yellow_lower_s: 85
+yellow_lower_v: 160
 yellow_upper_h: 35
-yellow_upper_s: 192
-yellow_upper_v: 250
+yellow_upper_s: 200
+yellow_upper_v: 255
