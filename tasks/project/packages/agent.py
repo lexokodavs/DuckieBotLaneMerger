@@ -13,7 +13,7 @@ from tasks.project.packages.ObjectDetector import ObjectDetector
 from tasks.project.packages.TurnAgent import TurnAgent
 from tasks.project.packages._aux import get_next_state_and_set_leds, set_all_leds
 from tasks.project.packages.LaneServoingAgent import LaneServoingAgent
-from tasks.project.packages.settings import has_to_wait_predetermined, outgoing_lane_predetermined
+from tasks.project.packages.settings import has_to_wait_predetermined, outgoing_lane_predetermined, start_in_manual_drive
 
 
 def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queue=None):
@@ -44,7 +44,7 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
     bot_state = get_next_state_and_set_leds(state=None, leds=leds)
     printed_lr = False  # remove later
     waiting_for_red_line_to_disappear = False
-    manual_drive = {'left': 0.0, 'right': 0.0}
+    manual_drive = {'left': 0.0, 'right': 0.0} if start_in_manual_drive else None
 
     try:
         while not stop_event.is_set():
@@ -66,6 +66,13 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                     elif key == 'manual_drive':
                         manual_drive = cmd.get('value')  # {'left': float, 'right': float} or None
 
+            # Always compute all masks fresh for the debug view
+            red_mask = get_red_mask(frame)
+            mask_left, mask_right = detect_lane_markings(frame)
+            yellow_mask = (mask_left  * 255).astype(np.uint8)
+            white_mask  = (mask_right * 255).astype(np.uint8)
+            detected_objects = []
+
             # Manual drive overrides all FSM logic
             if manual_drive is not None:
                 wheels.set_wheels_speed(manual_drive['left'], manual_drive['right'])
@@ -76,17 +83,9 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                     yellow_mask=yellow_mask,
                     white_mask=white_mask,
                     detections=[],
-                    distance_measure=None,
                 )
                 time.sleep(0.01)
                 continue
-
-            # Always compute all masks fresh for the debug view
-            red_mask = get_red_mask(frame)
-            mask_left, mask_right = detect_lane_markings(frame)
-            yellow_mask = (mask_left  * 255).astype(np.uint8)
-            white_mask  = (mask_right * 255).astype(np.uint8)
-            detected_objects = []
 
             if bot_state == BotState.convoying:
                 if is_in_front(frame):
@@ -138,9 +137,9 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                 wheels.set_wheels_speed(left, right)
 
                 if reentered:
-                    continue
                     print("Reentry detected, finishing.")
                     bot_state = get_next_state_and_set_leds(bot_state, leds)
+                    set_all_leds(leds, (1, 1, 1))
                     wheels.set_wheels_speed(0.0, 0.0)
 
             elif bot_state == BotState.finishing:
