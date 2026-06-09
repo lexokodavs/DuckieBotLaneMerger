@@ -24,21 +24,7 @@ class TurnAgent:
 
         self._turn_speed = float(dir_cfg.get('turn_speed', 0.2))
         self._turn_bias = float(dir_cfg.get('turn_bias', 0.1))
-
-        if outgoing_lane == AdjacentLane.east:
-            self._turn_speed = 0.2
-            self._turn_bias = 0.125
-            self.turn = 'right'
-
-        elif outgoing_lane == AdjacentLane.north:
-            self._turn_speed = 0.18
-            self._turn_bias = 0.03
-            self.turn = 'left'
-
-        elif outgoing_lane == AdjacentLane.west:
-            self._turn_speed = 0.2
-            self._turn_bias = 0.12
-            self.turn = 'left'
+        self.turn = dir_cfg.get('turn', 'left')
  
     def step(self, image: np.ndarray) -> Tuple[float, float]:
         print("Enterd turn_agent.step function frame")
