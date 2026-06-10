@@ -5,3 +5,4 @@ class BotName(Enum):
     gedi = 1
     megatron = 2
     bart = 3
+    glados = 4

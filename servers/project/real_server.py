@@ -11,6 +11,7 @@ sys.path.insert(0, project_root)
 from flask import Flask, Response, jsonify, request
 import numpy as np
 import cv2
+import yaml as _yaml
 
 from duckiebot.camera_driver import CameraDriver
 from duckiebot.wheel_driver import DaguWheelsDriver
@@ -24,6 +25,8 @@ import tasks.project.packages.agent as agent_module
 from tasks.project.packages.is_in_front_decider import get_hsv_bounds, set_hsv_bounds
 import tasks.project.packages.detect_lane_markings as lane_markings_module
 from tasks.project.packages.ObjectDetector import ObjectDetector
+from tasks.project.packages._aux import get_turn_agent_config_path
+from tasks.project.packages.settings import ROBOT_ID
 
 app        = Flask(__name__)
 camera     = None
@@ -180,14 +183,37 @@ def hsv_lane_post():
     return jsonify({'status': 'ok', **lane_markings_module.get_hsv_bounds()})
 
 
+@app.route('/turn_config', methods=['GET'])
+def turn_config_get():
+    with open(get_turn_agent_config_path(ROBOT_ID)) as f:
+        return jsonify(_yaml.safe_load(f))
+
+@app.route('/turn_config', methods=['POST'])
+def turn_config_post():
+    data = request.get_json(force=True) or {}
+    path = get_turn_agent_config_path(ROBOT_ID)
+    with open(path) as f:
+        cfg = _yaml.safe_load(f)
+    direction = data.get('direction')
+    if direction not in cfg:
+        return jsonify({'status': 'error', 'message': f'unknown direction: {direction}'}), 400
+    cfg[direction]['turn']            = str(data['turn'])
+    cfg[direction]['turn_speed']      = float(data['turn_speed'])
+    cfg[direction]['turn_bias']       = float(data['turn_bias'])
+    cfg[direction]['reentry_delay_s'] = float(data['reentry_delay_s'])
+    with open(path, 'w') as f:
+        _yaml.dump(cfg, f, default_flow_style=False)
+    return jsonify({'status': 'ok', **cfg})
+
+
 @app.route('/manual', methods=['POST'])
 def manual():
     data = request.get_json(force=True) or {}
-    # data is either {'left': float, 'right': float} to drive, or {} to disengage
     if 'left' in data and 'right' in data:
         _cmd_queue.put({'key': 'manual_drive', 'value': {'left': float(data['left']), 'right': float(data['right'])}})
     else:
-        _cmd_queue.put({'key': 'manual_drive', 'value': None})
+        reset = bool(data.get('reset_to_convoy', False))
+        _cmd_queue.put({'key': 'manual_drive', 'value': None, 'reset_to_convoy': reset})
     return jsonify({'status': 'ok'})
 
 

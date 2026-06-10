@@ -36,6 +36,10 @@ _CONTENT = '''
                 </div>
                 <div style="display:flex;flex-direction:column;gap:10px;">
                     <button class="button" id="manualToggleBtn" onclick="toggleManual()">Enable</button>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+                        <input type="checkbox" id="resetToConvoyChk" style="cursor:pointer;">
+                        Reset to convoy on exit
+                    </label>
                     <div id="manualControls" style="display:none;flex-direction:column;gap:10px;">
 
                         <!-- Arrow key pad -->
@@ -448,7 +452,8 @@ function toggleManual() {
         _keysHeld.clear();
         document.getElementById('readoutLeft').textContent  = '0.00';
         document.getElementById('readoutRight').textContent = '0.00';
-        postJSON('/manual', {}).catch(() => {});
+        const reset = document.getElementById('resetToConvoyChk').checked;
+        postJSON('/manual', { reset_to_convoy: reset }).catch(() => {});
     }
 }
 

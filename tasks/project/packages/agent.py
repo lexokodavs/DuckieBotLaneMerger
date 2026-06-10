@@ -64,7 +64,10 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                             wheels.remove_objects(name_filter)
                             print(f'[Agent] remove_objects: {name_filter}')
                     elif key == 'manual_drive':
-                        manual_drive = cmd.get('value')  # {'left': float, 'right': float} or None
+                        manual_drive = cmd.get('value')
+                        if manual_drive is None and cmd.get('reset_to_convoy', False):
+                            bot_state = get_next_state_and_set_leds(state=None, leds=leds)
+                            waiting_for_red_line_to_disappear = False
 
             # Always compute all masks fresh for the debug view
             red_mask = get_red_mask(frame)
@@ -95,7 +98,7 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                 if waiting_for_red_line_to_disappear and has_passed_red_line(frame):
                     bot_state = get_next_state_and_set_leds(bot_state, leds)
                     if outgoing_lane_predetermined is None:
-                        outoing_lane = decide_outgoing_lane(frame, object_detector)
+                        outgoing_lane = decide_outgoing_lane(frame, object_detector)
                     else:
                         outgoing_lane = outgoing_lane_predetermined
                     print(f"Outgoing lane: {outgoing_lane}")
@@ -139,16 +142,15 @@ def main(camera, wheels, leds, stop_event, debug=None, debug_lock=None, cmd_queu
                 if reentered:
                     print("Reentry detected, finishing.")
                     bot_state = get_next_state_and_set_leds(bot_state, leds)
-                    set_all_leds(leds, (1, 1, 1))
                     wheels.set_wheels_speed(0.0, 0.0)
 
             elif bot_state == BotState.finishing:
-                pass
+                left, right = lane_servoing_agent.compute_commands(frame)
+                #wheels.set_wheels_speed(left, right)
 
             else:
                 raise ValueError(f"Invalid bot state: {bot_state}")
 
-            # compute distance measure to leader (for tuning threshold)
             distance_measure = None
             try:
                 distance_measure = calculate_distance_measure_to_leader(frame)
