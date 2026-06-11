@@ -73,5 +73,7 @@ def get_turn_agent_config_path(bot_name):
         return 'config/turn_agent_config.bart.yaml'
     elif bot_name == BotName.glados:
         return 'config/turn_agent_config.glados.yaml'
+    elif bot_name == BotName.ordis:
+        return 'config/turn_agent_config.ordis.yaml'
     else:
         raise ValueError(f"Function get_turn_agent_config_path cannot handle bot name {bot_name}")

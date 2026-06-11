@@ -6,3 +6,4 @@ class BotName(Enum):
     megatron = 2
     bart = 3
     glados = 4
+    ordis = 5
